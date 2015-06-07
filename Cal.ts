@@ -18,27 +18,27 @@ module Calendar {
             this._isToday = isToday;
         }
 
-        getMonth(): Date {
+        public getMonth(): Date {
             return new Date(this.date.getTime());
         }
 
-        getMonthString(): string {
+        public getMonthString(): string {
             return '' + this.date.getMonth() + 1;
         }
 
-        getDateString(): string {
+        public getDateString(): string {
             return '' + this.date.getDate();
         }
 
-        getMonthType(): MonthType {
+        public getMonthType(): MonthType {
             return this.monthType;
         }
 
-        isToday(): boolean {
+        public isToday(): boolean {
             return this._isToday;
         }
 
-        toString(): string {
+        public toString(): string {
             return Util.pad(this.date.getMonth() + 1) + '/' + Util.pad(this.date.getDate());
         }
     }
