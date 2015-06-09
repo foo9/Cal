@@ -1,94 +1,68 @@
-
 module Calendar {
-    export enum MonthType {
-        Unknown = 0,
-        Previous = 1,
-        Current = 2,
-        Next = 3
-    }
-
-    export class DateModel {
-        private date: Date;
-        private monthType: MonthType;
+    export class DateEntity {
+        private _date: Date;
+        private _isFocusMonth: boolean;
         private _isToday: boolean;
 
-        constructor(date: Date, monthType: MonthType = MonthType.Unknown, isToday: boolean = false) {
-            this.date = new Date(date.getTime());
-            this.monthType = monthType;
-            this._isToday = isToday;
+        constructor(date: Date, focus: boolean = false, today: boolean = false) {
+            this._date = new Date(date.getTime());
+            this._isFocusMonth = focus;
+            this._isToday = today;
         }
 
-        public getMonth(): Date {
-            return new Date(this.date.getTime());
+        public toDate(): Date {
+            return new Date(this._date.getTime());
         }
 
-        public getMonthString(): string {
-            return '' + this.date.getMonth() + 1;
-        }
-
-        public getDateString(): string {
-            return '' + this.date.getDate();
-        }
-
-        public getMonthType(): MonthType {
-            return this.monthType;
+        public isFocusMonth(): boolean {
+            return this._isFocusMonth;
         }
 
         public isToday(): boolean {
             return this._isToday;
         }
 
-        public toString(): string {
-            return Util.pad(this.date.getMonth() + 1) + '/' + Util.pad(this.date.getDate());
+        public toString(): any {
+            return (this._date.getMonth() + 1) + '/' + this._date.getDate();
         }
     }
 
-    export class Util {
+    export class Sheet {
         public static DAYS_IN_WEEK: number = 7;
         public static WEEKS_IN_SHEET: number = 6;
 
-        constructor() { }
+        private _pivotDate: Date;
+        private _todayDate: Date;
 
-        public static pad(text: any, char: string = ' ', count: number = 1): string {
-            var padding: string = (new Array(count + 1)).join(char);
-
-            return (padding + text).substr(- (count + 1));
+        constructor(date: Date = new Date(), today: Date = new Date()) {
+            this._pivotDate = new Date(date.getTime());
+            this._todayDate = new Date(today.getTime());
         }
 
-        public static normalizeDate(d: Date): Date {
-            var normalized: Date = new Date(d.getTime());
-            normalized.setHours(0, 0, 0, 0);
+        public next(): Sheet {
+            this._pivotDate.setMonth(this._pivotDate.getMonth() + 1);
 
-            return normalized;
+            return this;
         }
 
-        public static isToday(a: Date, b: Date = new Date()): boolean {
-            var aDate: Date = Util.normalizeDate(new Date(a.getTime()));
-            var bDate: Date = Util.normalizeDate(new Date(b.getTime()));
+        public prev(): Sheet {
+            this._pivotDate.setMonth(this._pivotDate.getMonth() - 1);
 
-            return ((aDate.getTime() - bDate.getTime()) === 0);
+            return this;
         }
 
-        public static computeMonthType(a: Date, b: Date): MonthType {
-            var aIndex: number = (new Date(a.getTime())).getMonth();
-            var bIndex: number = (new Date(b.getTime())).getMonth();
-            var index: number = (aIndex - bIndex) + 2;
-
-            return MonthType[MonthType[index]] || MonthType.Unknown;
-        }
-
-        public static getSheet(d: Date, today: Date = new Date()): Array<Array<DateModel>> {
-            var date: Date = new Date(d.getTime());
+        public toArray(): Array<Array<DateEntity>> {
+            var date: Date = new Date(this._pivotDate.getTime());
 
             // 対象の月の、最初の日を取得
-            var normalized: Date = Util.normalizeDate(date);
+            var normalized: Date = this.normalizeDate(date);
             normalized.setDate(1);
             // 対象の月の、最初の日の、その日の週初めの日を設定
             normalized.setDate(normalized.getDate() - normalized.getDay());
 
-            var weeks: Array<Array<DateModel>> = [];
+            var weeks: Array<Array<DateEntity>> = [];
             var week: number = 0;
-            var monthType: MonthType;
+            var isFocusMonth: boolean;
             var isToday: boolean;
 
             while (true) {
@@ -96,23 +70,78 @@ module Calendar {
                     weeks[week] = [];
                 }
 
-                if (weeks[week].length !== Util.DAYS_IN_WEEK) {
-                    monthType = Util.computeMonthType(normalized, date);
-                    isToday = Util.isToday(normalized, today);
-                    weeks[week].push(new DateModel(normalized, monthType, isToday));
+                if (weeks[week].length !== Sheet.DAYS_IN_WEEK) {
+                    isFocusMonth = this.computeFocusMonth(normalized, date);
+                    isToday = this.isSame(normalized, this._todayDate);
+
+                    weeks[week].push(new DateEntity(normalized, isFocusMonth, isToday));
                     normalized.setDate(normalized.getDate() + 1);
                 }
 
-                if (weeks.length === Util.WEEKS_IN_SHEET && weeks[week].length === Util.DAYS_IN_WEEK) {
+                if (weeks.length === Sheet.WEEKS_IN_SHEET && weeks[week].length === Sheet.DAYS_IN_WEEK) {
                     break;
                 }
 
-                if (weeks[week].length === Util.DAYS_IN_WEEK) {
+                if (weeks[week].length === Sheet.DAYS_IN_WEEK) {
                     week++;
                 }
             }
 
             return weeks;
         }
+
+        public normalizeDate(d: Date): Date {
+            var normalized: Date = new Date(d.getTime());
+            normalized.setHours(0, 0, 0, 0);
+
+            return normalized;
+        }
+
+        public isSame(a: Date, b: Date): boolean {
+            var aDate: Date = this.normalizeDate(new Date(a.getTime()));
+            var bDate: Date = this.normalizeDate(new Date(b.getTime()));
+
+            return ((aDate.getTime() - bDate.getTime()) === 0);
+        }
+
+        public computeFocusMonth(a: Date, b: Date): boolean {
+            var aIndex: number = (new Date(a.getTime())).getMonth();
+            var bIndex: number = (new Date(b.getTime())).getMonth();
+
+            return ((aIndex - bIndex) == 0);
+        }
+        /*
+        public debug(): void {
+            var out: Array<string> = [];
+            var line: Array<string>;
+
+            this.toArray().forEach((r) => {
+                line = [];
+                r.forEach((e) => {
+                    var f: string = e.isFocusMonth() ? '' : '-';
+                    var t: string = e.isToday() ? '+' : '';
+                    line.push(e.toString() + f + t);
+                });
+                out.push(line.join('\t'));
+            });
+
+            console.log(out.join('\n'));
+            console.log('----------------------------------------------------');
+        }
+        */
     }
 }
+/*
+var sheet: Calendar.Sheet = new Calendar.Sheet();
+sheet.debug();
+
+sheet.next();
+sheet.debug();
+
+sheet.prev();
+sheet.prev();
+sheet.debug();
+
+sheet.next();
+sheet.debug();
+*/
